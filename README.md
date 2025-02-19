@@ -31,6 +31,8 @@
 4. **Commit Creation:** The generated test cases are automatically committed as a separate commit to the same PR.
 5. **Review & Merge:** Developers review the generated tests, make any necessary adjustments, and merge the PR.
 
+![alt text](https://github.com/Abhisheka-KS/ut-genie/master/image.jpg?raw=true)
+
 ## Getting Started
 
 ### Prerequisites
