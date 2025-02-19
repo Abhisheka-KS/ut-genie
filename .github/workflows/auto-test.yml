@@ -1,0 +1,95 @@
+name: Auto Generate and Commit Missing Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  generate-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.19'
+
+      - name: Install GitHub CLI and jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Fetch PR Changes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Fetching PR changes..."
+          git fetch --unshallow
+          git fetch origin $GITHUB_BASE_REF
+          BASE_COMMIT=$(git merge-base HEAD origin/$GITHUB_BASE_REF)
+          git diff --name-only $BASE_COMMIT...HEAD > changed_files.txt
+          echo "Modified files:"
+          cat changed_files.txt
+
+      - name: Extract Functions & Generate Tests Using GPT-4
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -f "$(git rev-parse --git-dir)/shallow" ]; then
+            git fetch --unshallow
+          else
+            git fetch origin $GITHUB_BASE_REF
+          fi
+
+
+          BASE_COMMIT=$(git merge-base HEAD origin/$GITHUB_BASE_REF)
+
+         
+          git diff $BASE_COMMIT...HEAD > diff.patch
+
+ 
+          echo "Listing all files in the current directory:"
+          ls -l
+         
+          if [[ ! -s diff.patch ]]; then
+            echo "No changes detected in the PR or diff.patch not created."
+            exit 0
+          fi
+
+           echo "Patch file created successfully."
+           
+           while IFS= read -r file; do
+            if [[ "$file" == *.go ]]; then
+              echo "Processing: $file"
+
+              ABS_FILE_PATH="$(pwd)/$file"
+              echo "File: $file"
+              
+              go build -o main main.go
+              MODIFIED_FUNCTIONS=$(main "$ABS_FILE_PATH")
+
+            else
+              echo "Skipping non-Go file: $file"
+            fi
+            done < changed_files.txt
+
+
+      - name: Commit and Push New Tests
+        run: |
+          rm changed_files.txt
+          rm diff.patch
+          rm main
+
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No new tests to commit."
+          else
+            git commit -m "Auto-generated missing tests using GPT-4"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
