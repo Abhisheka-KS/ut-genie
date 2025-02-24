@@ -69,8 +69,8 @@ jobs:
               ABS_FILE_PATH="$(pwd)/$file"
               echo "File: $file"
               
-              go build -o main main.go
-              MODIFIED_FUNCTIONS=$(./main "$ABS_FILE_PATH")
+              go build -o utgenie ut-genie-executor.go
+              MODIFIED_FUNCTIONS=$(./utgenie "$ABS_FILE_PATH")
 
             else
               echo "Skipping non-Go file: $file"
@@ -82,7 +82,7 @@ jobs:
         run: |
           rm changed_files.txt
           rm diff.patch
-          rm main
+          rm utgenie
 
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
